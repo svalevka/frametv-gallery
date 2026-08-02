@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Frame TV Gallery</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="toolbar">
+  <h1>Frame TV Gallery</h1>
+  <div class="controls">
+    <input id="search" type="search" placeholder="Search artist or title…" autocomplete="off" />
+    <select id="filter-movement"><option value="">All movements</option></select>
+    <select id="filter-century"><option value="">All centuries</option></select>
+    <select id="filter-letter"><option value="">All surname letters</option></select>
+    <button id="clear-filters" title="Clear filters">Clear</button>
+  </div>
+  <div class="selection-bar">
+    <span id="selection-count">0 selected</span>
+    <button id="send-to-frametv" disabled>Send to Frame TV</button>
+    <button id="clear-selection" disabled>Clear selection</button>
+  </div>
+</header>
+
+<div id="status-banner" class="status-banner" hidden></div>
+
+<main id="grid" class="grid"></main>
+
+<div id="sentinel"></div>
+
+<dialog id="lightbox">
+  <div class="lightbox-inner">
+    <button id="lightbox-close" class="lightbox-close" aria-label="Close">&times;</button>
+    <button id="lightbox-prev" class="lightbox-nav lightbox-prev" aria-label="Previous">&#10094;</button>
+    <button id="lightbox-next" class="lightbox-nav lightbox-next" aria-label="Next">&#10095;</button>
+    <img id="lightbox-img" alt="" />
+    <div class="lightbox-meta">
+      <div>
+        <div id="lightbox-title" class="lightbox-title"></div>
+        <div id="lightbox-artist" class="lightbox-artist"></div>
+        <div id="lightbox-tags" class="lightbox-tags"></div>
+      </div>
+      <div class="lightbox-actions">
+        <button id="lightbox-select">Select</button>
+        <button id="lightbox-share">Share via AirDrop</button>
+        <button id="lightbox-send">Send to Frame TV</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
