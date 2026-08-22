@@ -3,6 +3,7 @@ const path = require('path');
 const { ImageIndex } = require('./lib/index');
 const { getThumbnail } = require('./lib/thumbnails');
 const { listFrameTV, copyToFrameTV, removeFromFrameTV } = require('./lib/frametv');
+const { sendToTV, tvConfigured } = require('./lib/tv');
 
 const PORT = process.env.PORT || 4173;
 
@@ -91,6 +92,27 @@ app.post('/api/frametv', (req, res) => {
 app.delete('/api/frametv/:filename', (req, res) => {
   const removed = removeFromFrameTV(req.params.filename);
   res.json({ removed });
+});
+
+app.get('/api/tv/status', (req, res) => {
+  res.json({ configured: tvConfigured() });
+});
+
+app.post('/api/tv/send', async (req, res) => {
+  if (!tvConfigured()) {
+    return res.status(400).json({ error: 'FRAMETV_TV_IP is not set. Set it to your Frame TV\'s IP address.' });
+  }
+  const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+  const images = ids.map((id) => index.get(id)).filter(Boolean);
+  if (images.length === 0) return res.json({ results: [] });
+
+  try {
+    const result = await sendToTV(images.map((img) => img.path));
+    res.json(result);
+  } catch (err) {
+    console.error('Send to TV failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, () => {

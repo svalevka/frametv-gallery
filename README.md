@@ -22,11 +22,16 @@ structure into search filters.
   macOS/iOS share sheet (AirDrop is one of the share targets there; the Web
   Share API has no way to open AirDrop directly). Falls back to a normal
   download if the browser doesn't support sharing files.
+- **Send to TV (Wi-Fi)** — uploads selected images straight into the Frame
+  TV's Art Mode collection over the local network, no phone or AirDrop
+  involved. Only shown once `FRAMETV_TV_IP` is configured (see below).
 
 ## Requirements
 
 - Node.js 18+
 - The image collection mounted locally, by default at `/Volumes/External`
+- For **Send to TV (Wi-Fi)**: Python 3 and the TV on the same network (see
+  [Setting up direct Wi-Fi upload](#setting-up-direct-wi-fi-upload))
 
 ## Setup
 
@@ -94,6 +99,42 @@ there are skipped (not re-copied), and the grid marks them with an
 curl -X DELETE "http://localhost:4173/api/frametv/<filename>"
 ```
 
+## Setting up direct Wi-Fi upload
+
+"Send to TV (Wi-Fi)" talks to the Frame TV's Art Mode WebSocket API using the
+[`samsungtvws`](https://github.com/xchwarze/samsung-tv-ws-api) Python
+library, shelled out to from the Node server. It skips AirDrop and the phone
+app entirely.
+
+1. Find the TV's IP address. It's usually visible in **Settings > General >
+   Network > Network Status** on the TV, or discoverable from a Mac via
+   `dns-sd -B _airplay._tcp local` (Frame TVs advertise AirPlay) followed by
+   `dns-sd -L "<name>" _airplay._tcp local` to resolve the hostname.
+2. Create a virtualenv and install the library:
+   ```bash
+   cd scripts
+   python3 -m venv venv
+   ./venv/bin/pip install samsungtvws websocket-client
+   ```
+3. Start the app with the TV's IP set:
+   ```bash
+   FRAMETV_TV_IP="192.168.1.163" npm start
+   ```
+   The "Send to TV (Wi-Fi)" buttons only appear once this is set.
+
+The first upload may pop up an "Allow connection?" prompt on the TV itself —
+accept it with the remote. After that, `scripts/.tv-token.txt` caches the
+auth token so future uploads connect silently. Both `scripts/venv/` and
+`scripts/.tv-token.txt` are gitignored (per-machine, and the token is
+TV-specific).
+
+You can also run the uploader directly, without the web app:
+
+```bash
+cd scripts
+./venv/bin/python3 upload_to_tv.py --ip 192.168.1.163 --token-file .tv-token.txt /path/to/image1.jpg /path/to/image2.jpg
+```
+
 ## Project layout
 
 ```
@@ -101,5 +142,7 @@ server.js          Express app + API routes
 lib/index.js        Scans the source root and builds the in-memory image index
 lib/thumbnails.js   Generates and caches resized JPEG thumbnails (sharp)
 lib/frametv.js       Copy/list/remove helpers for the FrameTV destination folder
+lib/tv.js            Shells out to scripts/upload_to_tv.py for direct Wi-Fi upload
+scripts/upload_to_tv.py  Uploads images to Art Mode via the samsungtvws library
 public/              Static frontend (plain HTML/CSS/JS, no build step)
 ```

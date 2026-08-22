@@ -8,6 +8,7 @@
   const clearFiltersBtn = document.getElementById('clear-filters');
   const selectionCount = document.getElementById('selection-count');
   const sendBtn = document.getElementById('send-to-frametv');
+  const sendTvBtn = document.getElementById('send-to-tv');
   const clearSelectionBtn = document.getElementById('clear-selection');
   const statusBanner = document.getElementById('status-banner');
   const toast = document.getElementById('toast');
@@ -20,6 +21,7 @@
   const lightboxClose = document.getElementById('lightbox-close');
   const lightboxSelectBtn = document.getElementById('lightbox-select');
   const lightboxSendBtn = document.getElementById('lightbox-send');
+  const lightboxSendTvBtn = document.getElementById('lightbox-send-tv');
   const lightboxShareBtn = document.getElementById('lightbox-share');
   const lightboxPrevBtn = document.getElementById('lightbox-prev');
   const lightboxNextBtn = document.getElementById('lightbox-next');
@@ -73,6 +75,13 @@
       statusBanner.hidden = true;
     }
     return data.available;
+  }
+
+  async function checkTvStatus() {
+    const res = await fetch('/api/tv/status');
+    const data = await res.json();
+    sendTvBtn.hidden = !data.configured;
+    lightboxSendTvBtn.hidden = !data.configured;
   }
 
   function resetGrid() {
@@ -179,6 +188,7 @@
     const n = state.selected.size;
     selectionCount.textContent = `${n} selected`;
     sendBtn.disabled = n === 0;
+    sendTvBtn.disabled = n === 0;
     clearSelectionBtn.disabled = n === 0;
   }
 
@@ -218,6 +228,36 @@
       state.selected.clear();
       document.querySelectorAll('.card.selected').forEach((c) => c.classList.remove('selected'));
       updateSelectionBar();
+    }
+  }
+
+  sendTvBtn.addEventListener('click', async () => sendSelectionToTV());
+
+  async function sendSelectionToTV(ids) {
+    const idList = ids || Array.from(state.selected.keys());
+    if (idList.length === 0) return;
+    sendTvBtn.disabled = true;
+    sendTvBtn.textContent = 'Sending…';
+    try {
+      const res = await fetch('/api/tv/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: idList }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Send failed');
+      const ok = data.results.filter((r) => r.ok).length;
+      const failed = data.results.filter((r) => !r.ok);
+      showToast(
+        `Sent ${ok} image(s) to the TV${failed.length ? `, ${failed.length} failed` : ''}.`
+      );
+      if (failed.length) console.error('Send to TV failures:', failed);
+    } catch (err) {
+      console.error(err);
+      showToast(`Could not send to TV: ${err.message}`);
+    } finally {
+      sendTvBtn.disabled = state.selected.size === 0;
+      sendTvBtn.textContent = 'Send to TV (Wi-Fi)';
     }
   }
 
@@ -285,6 +325,12 @@
     const id = state.currentLightboxId;
     if (id == null) return;
     sendSelectionToFrameTV([id]);
+  });
+
+  lightboxSendTvBtn.addEventListener('click', () => {
+    const id = state.currentLightboxId;
+    if (id == null) return;
+    sendSelectionToTV([id]);
   });
 
   lightboxShareBtn.addEventListener('click', async () => {
@@ -369,6 +415,7 @@
 
   // --- Init ---
   (async function init() {
+    await checkTvStatus();
     const available = await checkStatus();
     if (!available) return;
     await loadFilters();
