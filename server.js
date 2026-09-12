@@ -96,6 +96,6 @@ app.post('/api/tv/send', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`FrameTV gallery running at http://localhost:${PORT}`);
 });
