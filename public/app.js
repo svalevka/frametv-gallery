@@ -7,7 +7,6 @@
   const letterSelect = document.getElementById('filter-letter');
   const clearFiltersBtn = document.getElementById('clear-filters');
   const selectionCount = document.getElementById('selection-count');
-  const sendBtn = document.getElementById('send-to-frametv');
   const sendTvBtn = document.getElementById('send-to-tv');
   const clearSelectionBtn = document.getElementById('clear-selection');
   const statusBanner = document.getElementById('status-banner');
@@ -20,7 +19,6 @@
   const lightboxTags = document.getElementById('lightbox-tags');
   const lightboxClose = document.getElementById('lightbox-close');
   const lightboxSelectBtn = document.getElementById('lightbox-select');
-  const lightboxSendBtn = document.getElementById('lightbox-send');
   const lightboxSendTvBtn = document.getElementById('lightbox-send-tv');
   const lightboxShareBtn = document.getElementById('lightbox-share');
   const lightboxPrevBtn = document.getElementById('lightbox-prev');
@@ -41,11 +39,11 @@
     itemsById: new Map(),
   };
 
-  function showToast(message) {
+  function showToast(message, duration = 4000) {
     toast.textContent = message;
-    toast.hidden = false;
+    if (!toast.matches(':popover-open')) toast.showPopover();
     clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => (toast.hidden = true), 2500);
+    showToast._t = setTimeout(() => toast.hidePopover(), duration);
   }
 
   async function loadFilters() {
@@ -137,6 +135,7 @@
     img.loading = 'lazy';
     img.src = `/api/thumb/${item.id}`;
     img.alt = item.title;
+    img.addEventListener('error', () => card.classList.add('thumb-missing'), { once: true });
 
     const check = document.createElement('div');
     check.className = 'check';
@@ -154,13 +153,6 @@
     card.appendChild(img);
     card.appendChild(check);
     card.appendChild(meta);
-
-    if (item.inFrameTV) {
-      const badge = document.createElement('div');
-      badge.className = 'badge';
-      badge.textContent = 'On TV';
-      card.appendChild(badge);
-    }
 
     card.addEventListener('click', () => openLightbox(item));
 
@@ -187,7 +179,6 @@
   function updateSelectionBar() {
     const n = state.selected.size;
     selectionCount.textContent = `${n} selected`;
-    sendBtn.disabled = n === 0;
     sendTvBtn.disabled = n === 0;
     clearSelectionBtn.disabled = n === 0;
   }
@@ -198,39 +189,6 @@
     updateSelectionBar();
   });
 
-  sendBtn.addEventListener('click', async () => sendSelectionToFrameTV());
-
-  async function sendSelectionToFrameTV(ids) {
-    const idList = ids || Array.from(state.selected.keys());
-    if (idList.length === 0) return;
-    sendBtn.disabled = true;
-    const res = await fetch('/api/frametv', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: idList }),
-    });
-    const data = await res.json();
-    showToast(
-      `Sent ${data.copied.length} image(s) to Frame TV${data.skipped.length ? `, ${data.skipped.length} already there` : ''}.`
-    );
-    document.querySelectorAll('.card').forEach((card) => {
-      if (idList.includes(Number(card.dataset.id))) {
-        let badge = card.querySelector('.badge');
-        if (!badge) {
-          badge = document.createElement('div');
-          badge.className = 'badge';
-          badge.textContent = 'On TV';
-          card.appendChild(badge);
-        }
-      }
-    });
-    if (!ids) {
-      state.selected.clear();
-      document.querySelectorAll('.card.selected').forEach((c) => c.classList.remove('selected'));
-      updateSelectionBar();
-    }
-  }
-
   sendTvBtn.addEventListener('click', async () => sendSelectionToTV());
 
   async function sendSelectionToTV(ids) {
@@ -238,6 +196,8 @@
     if (idList.length === 0) return;
     sendTvBtn.disabled = true;
     sendTvBtn.textContent = 'Sending…';
+    lightboxSendTvBtn.disabled = true;
+    lightboxSendTvBtn.textContent = 'Sending…';
     try {
       const res = await fetch('/api/tv/send', {
         method: 'POST',
@@ -248,16 +208,24 @@
       if (!res.ok) throw new Error(data.error || 'Send failed');
       const ok = data.results.filter((r) => r.ok).length;
       const failed = data.results.filter((r) => !r.ok);
-      showToast(
-        `Sent ${ok} image(s) to the TV${failed.length ? `, ${failed.length} failed` : ''}.`
-      );
-      if (failed.length) console.error('Send to TV failures:', failed);
+      if (failed.length) {
+        const uniqueErrors = [...new Set(failed.map((r) => r.error))];
+        showToast(
+          `${ok ? `Sent ${ok} image(s) to the TV. ` : ''}${uniqueErrors.join(' ')}`,
+          7000
+        );
+        console.error('Send to TV failures:', failed);
+      } else {
+        showToast(`Sent ${ok} image(s) to the TV.`);
+      }
     } catch (err) {
       console.error(err);
-      showToast(`Could not send to TV: ${err.message}`);
+      showToast(`Could not send to TV: ${err.message}`, 7000);
     } finally {
       sendTvBtn.disabled = state.selected.size === 0;
       sendTvBtn.textContent = 'Send to TV (Wi-Fi)';
+      lightboxSendTvBtn.disabled = false;
+      lightboxSendTvBtn.textContent = 'Send to TV (Wi-Fi)';
     }
   }
 
@@ -299,6 +267,10 @@
     if (item) openLightbox(item);
   }
 
+  lightboxImg.addEventListener('error', () => {
+    showToast('Image unavailable — check that the external drive is connected.', 6000);
+  });
+
   lightboxPrevBtn.addEventListener('click', () => navigateLightbox(-1));
   lightboxNextBtn.addEventListener('click', () => navigateLightbox(1));
 
@@ -319,12 +291,6 @@
     const item = state.selected.get(id) || state.itemsById.get(id);
     toggleSelect(item, card);
     lightboxSelectBtn.textContent = state.selected.has(id) ? 'Deselect' : 'Select';
-  });
-
-  lightboxSendBtn.addEventListener('click', () => {
-    const id = state.currentLightboxId;
-    if (id == null) return;
-    sendSelectionToFrameTV([id]);
   });
 
   lightboxSendTvBtn.addEventListener('click', () => {

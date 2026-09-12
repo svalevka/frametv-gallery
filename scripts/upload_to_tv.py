@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 from samsungtvws import SamsungTVWS
+from samsungtvws.exceptions import ConnectionFailure, UnauthorizedError
 
 FILE_TYPE_BY_SUFFIX = {
     ".jpg": "JPEG",
@@ -41,9 +42,26 @@ def main():
             continue
         try:
             data = path.read_bytes()
+        except OSError as e:
+            results.append({"file": path.name, "ok": False, "error": f"Could not read file: {e}"})
+            continue
+
+        try:
             content_id = art.upload(data, file_type=file_type, matte=args.matte)
             results.append({"file": path.name, "ok": True, "content_id": content_id})
-        except Exception as e:  # noqa: BLE001 - surface any failure back to the caller
+        except UnauthorizedError:
+            results.append({
+                "file": path.name,
+                "ok": False,
+                "error": f"TV at {args.ip} rejected the connection — accept the pairing prompt on the TV, then try again.",
+            })
+        except (ConnectionFailure, OSError):
+            results.append({
+                "file": path.name,
+                "ok": False,
+                "error": f"Failed to connect to Smart TV over IP address {args.ip}",
+            })
+        except Exception as e:  # noqa: BLE001 - surface any other failure back to the caller
             results.append({"file": path.name, "ok": False, "error": str(e)})
 
     print(json.dumps({"results": results}))

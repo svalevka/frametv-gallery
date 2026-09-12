@@ -2,7 +2,6 @@ const express = require('express');
 const path = require('path');
 const { ImageIndex } = require('./lib/index');
 const { getThumbnail } = require('./lib/thumbnails');
-const { listFrameTV, copyToFrameTV, removeFromFrameTV } = require('./lib/frametv');
 const { sendToTV, tvConfigured } = require('./lib/tv');
 
 const PORT = process.env.PORT || 4173;
@@ -44,7 +43,6 @@ app.get('/api/images', (req, res) => {
   const pageSize = Math.min(200, Math.max(1, parseInt(req.query.pageSize, 10) || 60));
 
   const result = index.search({ q, movement, century, letter, page, pageSize });
-  const frametvFiles = new Set(listFrameTV());
 
   result.items = result.items.map((img) => ({
     id: img.id,
@@ -53,7 +51,6 @@ app.get('/api/images', (req, res) => {
     filename: img.filename,
     movements: img.movements,
     centuries: img.centuries,
-    inFrameTV: frametvFiles.has(img.filename),
   }));
 
   res.json(result);
@@ -76,22 +73,6 @@ app.get('/api/full/:id', (req, res) => {
   const image = index.get(req.params.id);
   if (!image) return res.status(404).end();
   res.sendFile(image.path);
-});
-
-app.get('/api/frametv', (req, res) => {
-  res.json({ files: listFrameTV() });
-});
-
-app.post('/api/frametv', (req, res) => {
-  const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
-  const images = ids.map((id) => index.get(id)).filter(Boolean);
-  const result = copyToFrameTV(images);
-  res.json(result);
-});
-
-app.delete('/api/frametv/:filename', (req, res) => {
-  const removed = removeFromFrameTV(req.params.filename);
-  res.json({ removed });
 });
 
 app.get('/api/tv/status', (req, res) => {

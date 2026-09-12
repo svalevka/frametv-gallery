@@ -87,7 +87,7 @@ button:disabled {
   min-width: 80px;
 }
 
-#send-to-frametv {
+#send-to-tv {
   background: var(--accent);
   color: var(--accent-text);
   border-color: var(--accent);
@@ -137,6 +137,21 @@ button:disabled {
   background: #0a0a0c;
 }
 
+.card.thumb-missing img {
+  opacity: 0.15;
+}
+
+.card.thumb-missing::after {
+  content: 'Unavailable';
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--danger);
+}
+
 .card .meta {
   padding: 8px 10px;
 }
@@ -181,18 +196,6 @@ button:disabled {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-text);
-}
-
-.card .badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #8be28b;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 10px;
-  border: 1px solid rgba(139, 226, 139, 0.5);
 }
 
 #sentinel {
@@ -311,6 +314,8 @@ button:disabled {
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
+  margin: 0;
+  border: none;
   background: #23c552;
   color: #08240f;
   padding: 10px 18px;
@@ -318,6 +323,7 @@ button:disabled {
   font-size: 13px;
   font-weight: 600;
   z-index: 100;
+  max-width: min(90vw, 480px);
 }
 
 .empty-state {
